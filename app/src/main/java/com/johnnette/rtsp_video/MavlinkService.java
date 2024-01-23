@@ -2,8 +2,10 @@ package com.johnnette.rtsp_video;
 
 import android.app.Service;
 import android.content.Intent;
+import android.location.Location;
 import android.os.Binder;
 import android.os.IBinder;
+import android.provider.ContactsContract;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -18,42 +20,44 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.dronefleet.mavlink.MavlinkConnection;
 import io.dronefleet.mavlink.MavlinkMessage;
+import io.dronefleet.mavlink.common.GlobalPositionInt;
+import io.dronefleet.mavlink.common.VfrHud;
 import io.dronefleet.mavlink.minimal.Heartbeat;
 
 public class MavlinkService extends Service {
 
-    private static int      port  = 14550;
-    private static String   ipAddress = "192.168.31.140";
-    public static  AtomicBoolean connectionState;
+    // Binder Class for binding Service
+    public class MavlinkServiceBinder extends Binder {
+        MavlinkService getService() {
+            return MavlinkService.this;
+        }
+    }
+
+    // End of Class definition
+    private static int port = 14550;
+    private static String ipAddress = "192.168.31.140";
+    public static AtomicBoolean connectionState;
     private static MavlinkConnection mavlinkConnection;
     private static MavlinkMessage mavlinkMessage;
+    private final IBinder mBinder = new MavlinkServiceBinder();
 
-    private final IBinder  mBinder = new MavlinkServiceBinder();
+    private DataTelemetry model;
 
     public MavlinkService() {
         connectionState = new AtomicBoolean(false);
+        model = new DataTelemetry();
     }
 
-    public class MavlinkServiceBinder extends Binder {
-        MavlinkService getService(){
-            return MavlinkService.this ;
-        }
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        try {
-                TCP_MavlinkConnectionService();
+        TCP_MavlinkConnectionService();
 
-                stopSelf();
+        //stopSelf();
 
-                Log.d("CONNECTION", "STOPPED SERVICE");
-        }
-        catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        Log.d("CONNECTION", "SERVICE EXITED");
 
     }
 
@@ -77,31 +81,37 @@ public class MavlinkService extends Service {
     /// ###########################################################  ///
 
 
-    public static boolean TCP_MavlinkConnectionService()
-            throws InterruptedException {
+    public boolean TCP_MavlinkConnectionService() {
 
         Log.d("CONNECTION", "IN TCP MAVLINK");
-
 
         // if connection already exist skip
         if (connectionState.get())
             connectionState.set(false);
 
         // Separate thread for mavlink connection Test on startPage
-        Thread connectionThread = new Thread( () -> {
+        Thread connectionThread = new Thread(() -> {
 
             if (mavlinkConnection == null) {
                 Log.d("CONNECTION", "IN THREAD");
 
-                try (Socket socket = new Socket(ipAddress, port)){
+                try {
+                        Socket socket = new Socket(ipAddress, port);
 
-                    mavlinkConnection = MavlinkConnection.create(socket.getInputStream(), socket.getOutputStream());
+                        mavlinkConnection = MavlinkConnection.create( socket.getInputStream(), socket.getOutputStream());
 
-                    int beats = 0;
-                    Log.d("Connection", "START LOOP");
-                    while ((mavlinkMessage = mavlinkConnection.next()) != null) {
+                        if(mavlinkConnection != null) {
 
-                        if (mavlinkMessage.getPayload() instanceof Heartbeat) {
+                            Log.d("Connection", "START LOOP");
+
+                            while ((mavlinkMessage = mavlinkConnection.next()) != null)
+                            {
+
+                                IdentifyMessage(mavlinkMessage);
+
+                                Log.d("Connection", "IN LOOP ");
+
+/*                        if (mavlinkMessage.getPayload() instanceof Heartbeat) {
 
                             beats++;
                             if (beats > 3) {
@@ -109,33 +119,33 @@ public class MavlinkService extends Service {
                                 break;
                             }
                             Log.d("Connection", "HEARTBEAT MESSAGE");
+                        }*/
+                            }
                         }
-                    }
+                        else {
+                            Log.d("CONNECTION", "FAILED MAVLINK CONNECTION");
+                            stopSelf();
+                            return;
+                        }
 
+                    stopSelf();
                     Log.i("Connection", "OUT OF LOOP");
-                } catch (EOFException eof) {
-                    Log.e("Connection", eof.getMessage());
-
                 } catch (IOException e) {
                     Log.e("Connection", e.getMessage());
                 }
 
-            } else {
+            }
+
+            else {
                 try {
                     int beats = 0;
                     Log.i("Connection", "START LOOP");
+
                     while ((mavlinkMessage = mavlinkConnection.next()) != null) {
 
-                        if (mavlinkMessage.getPayload() instanceof Heartbeat) {
+                        IdentifyMessage(mavlinkMessage);
 
-                            beats++;
-                            if (beats > 3) {
-                                connectionState.set(true);
-                                break;
-                            }
-                            Log.i("Connection", "HEARTBEAT MESSAGE");
-
-                        }
+                        Log.d("Connection", "IN LOOP ");
                     }
 
                     Log.i("Connection", "OUT OF LOOP");
@@ -146,16 +156,38 @@ public class MavlinkService extends Service {
         });
 
         connectionThread.start();
-        connectionThread.join(5000);
 
         Log.i("Connection", "EXIT CASE");
 
         return connectionState.get();
     }
 
+    public void IdentifyMessage(MavlinkMessage<?> message) {
+
+        //Log.d("ViewModel", "CHECKING//");
+        if (message.getPayload() instanceof GlobalPositionInt position) {
+            model.setLat_long(position.lat(), position.lon());
+
+            Log.d("ViewModel", "== POSITION");
+
+        }
+
+        // VFR_HUD ( #74 ) for air speed and ground speed
+        else if (message.getPayload() instanceof VfrHud hud) {
+
+            model.setGroundSpeed(hud.groundspeed());
+            Log.d("ViewModel", "== GROUND SPEED");
+
+        }
+
+        //Log.d("VIEWMODEL", "IdentifyMessage: "+model);
+        TeleViewModel.getInstance().UpdateViewModel(model);
+
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mavlinkConnection = null;
+
     }
 }

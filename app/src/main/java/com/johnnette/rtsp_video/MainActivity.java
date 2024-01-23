@@ -1,6 +1,9 @@
 package com.johnnette.rtsp_video;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.databinding.DataBindingUtil;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -8,9 +11,13 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.renderscript.ScriptGroup.Binding;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import com.johnnette.rtsp_video.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -52,19 +59,37 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button button = findViewById(R.id.button);
+        ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        TeleViewModel teleViewModel = new ViewModelProvider(this).get(TeleViewModel.class);
 
-        button.setOnClickListener(new View.OnClickListener() {
+        teleViewModel.getTelemetryData().observe(this, mutableLiveData ->{
+            Log.d("OBSERVER", "OBSERVER CHANGE=="+mutableLiveData.getGroundSpeed());
+
+            binding.groundSpeed.setText( String.valueOf(mutableLiveData.getGroundSpeed()));
+        } ) ;
+
+        Button startButton  = findViewById(R.id.startButton);
+        Button stopButton   = findViewById(R.id.stopButton);
+
+        startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startService(new Intent(getApplicationContext(), MavlinkService.class));
             }
         });
-    }
 
+        stopButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //stopService( new Intent(getApplicationContext(), MavlinkService.class));
+                Log.d("ViewModel", "OBSERVER CHANGE=="+ teleViewModel.getTelemetryData().getValue().getGroundSpeed());
+            }
+        });
+    }
 
 
 }
