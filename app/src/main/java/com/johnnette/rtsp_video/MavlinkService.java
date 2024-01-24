@@ -96,20 +96,19 @@ public class MavlinkService extends Service {
                 Log.d("CONNECTION", "IN THREAD");
 
                 try {
-                        Socket socket = new Socket(ipAddress, port);
+                    Socket socket = new Socket(ipAddress, port);
 
-                        mavlinkConnection = MavlinkConnection.create( socket.getInputStream(), socket.getOutputStream());
+                    mavlinkConnection = MavlinkConnection.create(socket.getInputStream(), socket.getOutputStream());
 
-                        if(mavlinkConnection != null) {
+                    if (mavlinkConnection != null) {
 
-                            Log.d("Connection", "START LOOP");
+                        Log.d("Connection", "START LOOP");
 
-                            while ((mavlinkMessage = mavlinkConnection.next()) != null)
-                            {
+                        while ((mavlinkMessage = mavlinkConnection.next()) != null) {
 
-                                IdentifyMessage(mavlinkMessage);
+                            IdentifyMessage(mavlinkMessage);
 
-                                Log.d("Connection", "IN LOOP ");
+                            //Log.d("Connection", "IN LOOP ");
 
 /*                        if (mavlinkMessage.getPayload() instanceof Heartbeat) {
 
@@ -120,13 +119,14 @@ public class MavlinkService extends Service {
                             }
                             Log.d("Connection", "HEARTBEAT MESSAGE");
                         }*/
-                            }
                         }
-                        else {
-                            Log.d("CONNECTION", "FAILED MAVLINK CONNECTION");
-                            stopSelf();
-                            return;
-                        }
+                    }
+
+                    else {
+                        Log.d("CONNECTION", "FAILED MAVLINK CONNECTION");
+                        stopSelf();
+                        return;
+                    }
 
                     stopSelf();
                     Log.i("Connection", "OUT OF LOOP");
@@ -134,9 +134,7 @@ public class MavlinkService extends Service {
                     Log.e("Connection", e.getMessage());
                 }
 
-            }
-
-            else {
+            } else {
                 try {
                     int beats = 0;
                     Log.i("Connection", "START LOOP");
@@ -167,17 +165,11 @@ public class MavlinkService extends Service {
         //Log.d("ViewModel", "CHECKING//");
         if (message.getPayload() instanceof GlobalPositionInt position) {
             model.setLat_long(position.lat(), position.lon());
-
-            Log.d("ViewModel", "== POSITION");
-
         }
 
         // VFR_HUD ( #74 ) for air speed and ground speed
         else if (message.getPayload() instanceof VfrHud hud) {
-
             model.setGroundSpeed(hud.groundspeed());
-            Log.d("ViewModel", "== GROUND SPEED");
-
         }
 
         //Log.d("VIEWMODEL", "IdentifyMessage: "+model);
@@ -189,5 +181,6 @@ public class MavlinkService extends Service {
     public void onDestroy() {
         super.onDestroy();
 
+        mavlinkConnection = null;
     }
 }

@@ -8,13 +8,13 @@ import androidx.lifecycle.ViewModel;
 
 public class TeleViewModel extends ViewModel {
 
-    public static TeleViewModel _Instance;
-    private final MutableLiveData<DataTelemetry> mutableLiveData =
-            new MutableLiveData<>(new DataTelemetry());
+    public static TeleViewModel _Instance; //single instance
+    private MutableLiveData<DataTelemetry> mutableLiveData
+                = new MutableLiveData<>(new DataTelemetry());
     private DataTelemetry dataModel ;
 
 
-    // Singleton instance
+    // Singleton instance function
     public static TeleViewModel getInstance(){
         if(_Instance == null ){
             _Instance = new TeleViewModel();
@@ -22,15 +22,16 @@ public class TeleViewModel extends ViewModel {
         }
         return _Instance;
     }
-    public LiveData<DataTelemetry> getTelemetryData(){
- /*       if (mutableLiveData == null) {
-            mutableLiveData = new MutableLiveData<DataTelemetry>();*/
 
-            if(dataModel == null)
+    public LiveData<DataTelemetry> getTelemetryData() {
+        if (mutableLiveData == null) {
+            mutableLiveData = new MutableLiveData<DataTelemetry>();
+
+            if (dataModel == null)
                 dataModel = new DataTelemetry();
 
             mutableLiveData.setValue(dataModel);
-        //}
+        }
         return mutableLiveData;
     }
 
@@ -42,13 +43,16 @@ public class TeleViewModel extends ViewModel {
             if (model != null) {
                 this.dataModel = model ;
 
-                Log.d("ViewModel", "Data: "+ mutableLiveData.getValue().getGroundSpeed());
+               // Log.d("ViewModel", "Data: " + mutableLiveData.getValue().getGroundSpeed());
             }
 
         }
 
-        dataModel = model ;
-        mutableLiveData.postValue(model);
+        else {
+                getTelemetryData();
+            }
+
+        mutableLiveData.postValue(dataModel);
 
     }
 

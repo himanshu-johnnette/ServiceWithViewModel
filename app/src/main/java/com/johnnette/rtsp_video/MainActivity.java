@@ -22,7 +22,7 @@ import com.johnnette.rtsp_video.databinding.ActivityMainBinding;
 public class MainActivity extends AppCompatActivity {
 
     private MavlinkService mavlinkService;
-    
+
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -33,8 +33,8 @@ public class MainActivity extends AppCompatActivity {
             // service that we know is running in our own process, we can
             // cast its IBinder to a concrete class and directly access it.
 
-            mavlinkService = 
-                    ((MavlinkService.MavlinkServiceBinder)service).getService();
+            mavlinkService =
+                    ((MavlinkService.MavlinkServiceBinder) service).getService();
 
             // Tell the user about this for our demo.
             Toast.makeText(getApplicationContext(), "SERVICE CONNECTED",
@@ -53,7 +53,8 @@ public class MainActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         }
     };
-    public MainActivity(){
+
+    public MainActivity() {
 
     }
 
@@ -61,32 +62,47 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
         ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-        TeleViewModel teleViewModel = new ViewModelProvider(this).get(TeleViewModel.class);
+        //TeleViewModel teleViewModel = new ViewModelProvider(this).get(TeleViewModel.class);
+        TeleViewModel teleViewModel = TeleViewModel.getInstance();
 
-        teleViewModel.getTelemetryData().observe(this, mutableLiveData ->{
-            Log.d("OBSERVER", "OBSERVER CHANGE=="+mutableLiveData.getGroundSpeed());
+        // Observer live data
+        teleViewModel.getTelemetryData().observe(
+                this,
+                new Observer<DataTelemetry>() {
+                    @Override
+                    public void onChanged(DataTelemetry dataTelemetry) {
+                        // Log.d("OBSERVER", "Data: " + dataTelemetry.getGroundSpeed());
+                        binding.groundSpeed.setText(String.valueOf( ( ( dataTelemetry.getGroundSpeed() * 3600) /1000) ));
+                    }
+                }
+                );
 
-            binding.groundSpeed.setText( String.valueOf(mutableLiveData.getGroundSpeed()));
-        } ) ;
+/*       teleViewModel.getTelemetryData().observe(this, dataTelemetry -> {
 
-        Button startButton  = findViewById(R.id.startButton);
-        Button stopButton   = findViewById(R.id.stopButton);
+           Log.d("OBSERVER","Data: "+ dataTelemetry.getGroundSpeed());
+           binding.groundSpeed.setText( String.valueOf( dataTelemetry.getGroundSpeed() ) );
+
+        });*/
+
+        Button startButton = findViewById(R.id.startButton);
+        Button stopButton = findViewById(R.id.stopButton);
+
+        Intent service = new Intent(getApplicationContext(), MavlinkService.class);
 
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startService(new Intent(getApplicationContext(), MavlinkService.class));
+                startService(service);
             }
         });
 
         stopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //stopService( new Intent(getApplicationContext(), MavlinkService.class));
-                Log.d("ViewModel", "OBSERVER CHANGE=="+ teleViewModel.getTelemetryData().getValue().getGroundSpeed());
+                //stopService( service );
+                binding.groundSpeed.setText(String.valueOf(teleViewModel.getTelemetryData().getValue().getGroundSpeed()));
             }
         });
     }
